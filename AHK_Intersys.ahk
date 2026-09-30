@@ -11,7 +11,7 @@
 ; ::wgi::winget install --Source winget --id erst nach Leertaste, Tap oder Enter
 ;Der Stern (*) ersetzt sofort
 
-
+:*:wgs::winget search  
 :*:wgi::winget install --Source winget --id 
 :*:GL_::Geschäftsleitung
 :*:bei_::Bei Fragen stehe ich Ihnen gerne zur Verfügung
