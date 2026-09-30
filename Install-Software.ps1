@@ -561,8 +561,8 @@ foreach ($Package in $Software) {
                 Write-Host "Kein Update durchgeführt." -ForegroundColor DarkYellow
 
                 Write-Log `
-                    "$Package: Kein Update durchgeführt. ExitCode $ExitCode" `
-                    "WARNING"
+    "$($Package): Kein Update durchgeführt. ExitCode $ExitCode" `
+    "WARNING"
 
                 $AlreadyInstalled += $Package
             }
