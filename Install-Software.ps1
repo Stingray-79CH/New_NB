@@ -3,38 +3,15 @@
 # ============================================================================
 # New NB - Universelle Softwareinstallation mit WinGet
 # ============================================================================
-#
-# Profile:
-#   1 = Standard Notebook
-#   2 = Power User
-#   3 = IT / Admin
-#   4 = Grafik
-#
-# Funktionen:
-#   - Automatische Administratorrechte
-#   - WinGet-Prüfung
-#   - Profilauswahl
-#   - Erkennung bereits installierter Software
-#   - Optionales Aktualisieren installierter Software
-#   - Silent Installation
-#   - Detailliertes Logging
-#   - Zusammenfassung am Schluss
-#
-# ============================================================================
 
 
 # ============================================================================
 # EINSTELLUNGEN
 # ============================================================================
 
-# Bereits installierte Programme aktualisieren?
 $UpdateExistingSoftware = $true
-
-# Log-Verzeichnis
-$LogDirectory = "C:\Temp"
-
-# WinGet Source vor Installation aktualisieren?
-$UpdateWingetSources = $true
+$UpdateWingetSources    = $true
+$LogDirectory           = "C:\Temp"
 
 
 # ============================================================================
@@ -42,8 +19,7 @@ $UpdateWingetSources = $true
 # ============================================================================
 
 $CurrentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
-
-$Principal = New-Object Security.Principal.WindowsPrincipal($CurrentUser)
+$Principal   = New-Object Security.Principal.WindowsPrincipal($CurrentUser)
 
 $IsAdmin = $Principal.IsInRole(
     [Security.Principal.WindowsBuiltInRole]::Administrator
@@ -88,6 +64,7 @@ function Write-Log {
     param (
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
         [string]$Message,
 
         [ValidateSet(
@@ -151,10 +128,10 @@ if (-not $Winget) {
 
     Write-Host ""
     Write-Host "FEHLER: WinGet wurde nicht gefunden!" -ForegroundColor Red
-    Write-Host ""
 
     Write-Log "WinGet wurde nicht gefunden." "ERROR"
 
+    Write-Host ""
     Read-Host "ENTER drücken zum Beenden"
 
     exit 1
@@ -169,6 +146,112 @@ Write-Log "WinGet gefunden: $WingetVersion" "OK"
 
 
 # ============================================================================
+# WINGET FUNKTIONSTEST
+# ============================================================================
+
+function Test-WingetSource {
+
+    Write-Host "Teste WinGet Quelle..." -ForegroundColor Yellow
+    Write-Log "Teste WinGet Quelle."
+
+    $null = & winget search `
+        --id "7zip.7zip" `
+        --exact `
+        --accept-source-agreements `
+        2>&1
+
+    $ExitCode = $LASTEXITCODE
+
+    if ($ExitCode -eq 0) {
+
+        Write-Host "WinGet Quelle funktioniert." -ForegroundColor Green
+        Write-Log "WinGet Quelle funktioniert." "OK"
+
+        return $true
+    }
+
+    Write-Host "WinGet Quelle ist fehlerhaft." -ForegroundColor Red
+    Write-Log "WinGet Quellentest fehlgeschlagen. ExitCode: $ExitCode" "ERROR"
+
+    return $false
+}
+
+
+# ============================================================================
+# WINGET QUELLE REPARIEREN
+# ============================================================================
+
+function Repair-WingetSource {
+
+    Write-Host ""
+    Write-Host "WinGet Quelle wird repariert..." -ForegroundColor Yellow
+    Write-Log "WinGet Quellenreparatur gestartet."
+
+    $ResetOutput = & winget source reset --force 2>&1
+
+    foreach ($Line in $ResetOutput) {
+
+        Write-Host $Line
+        Write-Log "WinGet: $Line"
+    }
+
+    Write-Host ""
+
+    $UpdateOutput = & winget source update 2>&1
+
+    foreach ($Line in $UpdateOutput) {
+
+        Write-Host $Line
+        Write-Log "WinGet: $Line"
+    }
+
+    Write-Host ""
+    Write-Log "WinGet Quellenreparatur beendet."
+}
+
+
+# ============================================================================
+# QUELLE VOR START TESTEN
+# ============================================================================
+
+$WingetSourceOK = Test-WingetSource
+
+if (-not $WingetSourceOK) {
+
+    Repair-WingetSource
+
+    Write-Host ""
+    Write-Host "Teste WinGet Quelle erneut..." -ForegroundColor Yellow
+
+    $WingetSourceOK = Test-WingetSource
+}
+
+
+if (-not $WingetSourceOK) {
+
+    Write-Host ""
+    Write-Host "============================================================" -ForegroundColor Red
+    Write-Host " FEHLER" -ForegroundColor Red
+    Write-Host "============================================================" -ForegroundColor Red
+    Write-Host ""
+
+    Write-Host "Die WinGet Quelle funktioniert weiterhin nicht." -ForegroundColor Red
+    Write-Host "Die Installation wird deshalb abgebrochen." -ForegroundColor Red
+
+    Write-Log "WinGet Quelle konnte nicht repariert werden." "ERROR"
+
+    Write-Host ""
+    Write-Host "Logdatei:"
+    Write-Host $LogFile
+    Write-Host ""
+
+    Read-Host "ENTER drücken zum Beenden"
+
+    exit 1
+}
+
+
+# ============================================================================
 # SOFTWARELISTEN
 # ============================================================================
 
@@ -179,38 +262,28 @@ Write-Log "WinGet gefunden: $WingetVersion" "OK"
 
 $StandardSoftware = @(
 
-    # Archiv
     "7zip.7zip"
 
-    # Browser
     "Google.Chrome"
+
     "Mozilla.Firefox"
 
-    # PDF
     "Adobe.Acrobat.Reader.64-bit"
 
-    # Multimedia
     "VideoLAN.VLC"
 
-    # Bildbetrachter
     "IrfanSkiljan.IrfanView"
 
-    # Texteditor
     "Notepad++.Notepad++"
 
-    # Passwortmanager
     "KeePassXCTeam.KeePassXC"
 
-    # Windows Erweiterungen
     "Microsoft.PowerToys"
 
-    # Dateisuche
     "voidtools.Everything"
 
-    # Speicheranalyse
     "JAMSoftware.TreeSize.Free"
 
-    # PowerShell
     "Microsoft.PowerShell"
 )
 
@@ -221,16 +294,12 @@ $StandardSoftware = @(
 
 $PowerUserSoftware = @(
 
-    # Screenshot Tool
     "ShareX.ShareX"
 
-    # Automation
     "AutoHotkey.AutoHotkey"
 
-    # Erweiterter PDF Editor
     "PDFgear.PDFgear"
 
-    # Windows Terminal
     "Microsoft.WindowsTerminal"
 )
 
@@ -241,22 +310,16 @@ $PowerUserSoftware = @(
 
 $ITSoftware = @(
 
-    # Code Editor
     "Microsoft.VisualStudioCode"
 
-    # Git
     "Git.Git"
 
-    # SCP / SFTP
     "WinSCP.WinSCP"
 
-    # SSH / Telnet
     "PuTTY.PuTTY"
 
-    # Netzwerk Analyse
     "WiresharkFoundation.Wireshark"
 
-    # Microsoft Sysinternals
     "Microsoft.Sysinternals"
 )
 
@@ -267,13 +330,10 @@ $ITSoftware = @(
 
 $GraphicsSoftware = @(
 
-    # Vektorgrafik
     "Inkscape.Inkscape"
 
-    # Screenshot / Bildbearbeitung
     "ShareX.ShareX"
 
-    # Erweiterter PDF Editor
     "PDFgear.PDFgear"
 )
 
@@ -282,6 +342,9 @@ $GraphicsSoftware = @(
 # PROFILAUSWAHL
 # ============================================================================
 
+Clear-Host
+
+Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host " Installationsprofil auswählen" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
@@ -326,7 +389,6 @@ switch ($ProfileSelection) {
         $Software = $StandardSoftware
     }
 
-
     "2" {
 
         $ProfileName = "Power User"
@@ -336,7 +398,6 @@ switch ($ProfileSelection) {
             $PowerUserSoftware
         )
     }
-
 
     "3" {
 
@@ -348,7 +409,6 @@ switch ($ProfileSelection) {
             $ITSoftware
         )
     }
-
 
     "4" {
 
@@ -362,10 +422,7 @@ switch ($ProfileSelection) {
 }
 
 
-# Doppelte Einträge entfernen
-
-$Software = $Software |
-    Sort-Object -Unique
+$Software = $Software | Sort-Object -Unique
 
 
 Clear-Host
@@ -412,7 +469,7 @@ if ($Confirmation -notmatch '^[JjYy]$') {
 
 
 # ============================================================================
-# WINGET SOURCES AKTUALISIEREN
+# WINGET QUELLEN AKTUALISIEREN
 # ============================================================================
 
 if ($UpdateWingetSources) {
@@ -432,7 +489,6 @@ if ($UpdateWingetSources) {
     foreach ($Line in $SourceOutput) {
 
         Write-Host $Line
-
         Write-Log "WinGet: $Line"
     }
 
@@ -447,10 +503,11 @@ if ($UpdateWingetSources) {
     else {
 
         Write-Host ""
-        Write-Host "WARNUNG: Source Update mit Fehler beendet." -ForegroundColor Yellow
+        Write-Host "Warnung: WinGet Source Update nicht vollständig erfolgreich." `
+            -ForegroundColor Yellow
 
         Write-Log `
-            "Winget Source Update ExitCode: $SourceExitCode" `
+            "WinGet Source Update ExitCode: $SourceExitCode" `
             "WARNING"
     }
 }
@@ -460,17 +517,14 @@ if ($UpdateWingetSources) {
 # ERGEBNISLISTEN
 # ============================================================================
 
-$Installed = @()
-
-$Updated = @()
-
+$Installed        = @()
+$Updated          = @()
 $AlreadyInstalled = @()
-
-$Failed = @()
+$Failed           = @()
 
 
 # ============================================================================
-# SOFTWARE INSTALLIEREN
+# SOFTWARE VERARBEITEN
 # ============================================================================
 
 foreach ($Package in $Software) {
@@ -505,13 +559,8 @@ foreach ($Package in $Software) {
     if ($ListExitCode -eq 0) {
 
         Write-Host "Bereits installiert." -ForegroundColor Yellow
-
         Write-Log "$Package ist bereits installiert."
 
-
-        # --------------------------------------------------------------------
-        # UPDATE
-        # --------------------------------------------------------------------
 
         if ($UpdateExistingSoftware) {
 
@@ -530,14 +579,12 @@ foreach ($Package in $Software) {
                 --disable-interactivity `
                 2>&1
 
-
             $ExitCode = $LASTEXITCODE
 
 
             foreach ($Line in $WingetOutput) {
 
                 Write-Host $Line
-
                 Write-Log "WinGet: $Line"
             }
 
@@ -553,16 +600,12 @@ foreach ($Package in $Software) {
             }
             else {
 
-                # Winget liefert bei fehlendem Update je nach Version ebenfalls
-                # einen eigenen Rückgabecode. Deshalb nicht sofort als
-                # Installationsfehler behandeln.
-
                 Write-Host ""
                 Write-Host "Kein Update durchgeführt." -ForegroundColor DarkYellow
 
                 Write-Log `
-    "$($Package): Kein Update durchgeführt. ExitCode $ExitCode" `
-    "WARNING"
+                    "$($Package): Kein Update durchgeführt. ExitCode $ExitCode" `
+                    "WARNING"
 
                 $AlreadyInstalled += $Package
             }
@@ -608,14 +651,9 @@ foreach ($Package in $Software) {
     foreach ($Line in $WingetOutput) {
 
         Write-Host $Line
-
         Write-Log "WinGet: $Line"
     }
 
-
-    # ========================================================================
-    # ERGEBNIS
-    # ========================================================================
 
     if ($ExitCode -eq 0) {
 
@@ -661,11 +699,6 @@ Write-Host "Computer : $env:COMPUTERNAME"
 Write-Host "Profil   : $ProfileName"
 Write-Host ""
 
-
-# ----------------------------------------------------------------------------
-# NEU INSTALLIERT
-# ----------------------------------------------------------------------------
-
 Write-Host "Neu installiert: $($Installed.Count)" -ForegroundColor Green
 
 foreach ($Item in $Installed) {
@@ -674,11 +707,6 @@ foreach ($Item in $Installed) {
 }
 
 Write-Host ""
-
-
-# ----------------------------------------------------------------------------
-# AKTUALISIERT
-# ----------------------------------------------------------------------------
 
 Write-Host "Aktualisiert/verarbeitet: $($Updated.Count)" -ForegroundColor Cyan
 
@@ -689,11 +717,6 @@ foreach ($Item in $Updated) {
 
 Write-Host ""
 
-
-# ----------------------------------------------------------------------------
-# BEREITS INSTALLIERT
-# ----------------------------------------------------------------------------
-
 Write-Host "Bereits installiert / kein Update: $($AlreadyInstalled.Count)" `
     -ForegroundColor Yellow
 
@@ -703,11 +726,6 @@ foreach ($Item in $AlreadyInstalled) {
 }
 
 Write-Host ""
-
-
-# ----------------------------------------------------------------------------
-# FEHLER
-# ----------------------------------------------------------------------------
 
 if ($Failed.Count -gt 0) {
 
@@ -753,11 +771,8 @@ Write-Host ""
 
 Write-Host "Logdatei:" -ForegroundColor Yellow
 Write-Host $LogFile -ForegroundColor White
-
 Write-Host ""
 
-
-# Bei Fehlern Logdatei automatisch öffnen
 
 if ($Failed.Count -gt 0) {
 
