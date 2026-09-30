@@ -1,4 +1,4 @@
-﻿#requires -Version 5.1
+#requires -Version 5.1
 
 # ============================================================================
 # New NB - Universelle Softwareinstallation mit WinGet
@@ -320,7 +320,7 @@ $ITSoftware = @(
 
     "WiresharkFoundation.Wireshark"
 
-    "Microsoft.Sysinternals"
+    "Microsoft.Sysinternals.Suite"
 )
 
 
@@ -592,22 +592,36 @@ foreach ($Package in $Software) {
             if ($ExitCode -eq 0) {
 
                 Write-Host ""
-                Write-Host "OK: $Package verarbeitet." -ForegroundColor Green
+                Write-Host "OK: $Package wurde aktualisiert." -ForegroundColor Green
 
-                Write-Log "$Package Update erfolgreich verarbeitet." "OK"
+                Write-Log "$Package wurde erfolgreich aktualisiert." "OK"
 
                 $Updated += $Package
+            }
+            elseif ($ExitCode -eq -1978335189) {
+
+                Write-Host ""
+                Write-Host "OK: $Package ist bereits aktuell." -ForegroundColor Green
+
+                Write-Log "$Package ist bereits aktuell." "OK"
+
+                $AlreadyInstalled += $Package
             }
             else {
 
                 Write-Host ""
-                Write-Host "Kein Update durchgeführt." -ForegroundColor DarkYellow
+                Write-Host "FEHLER beim Update von $Package" -ForegroundColor Red
+                Write-Host "ExitCode: $ExitCode" -ForegroundColor Red
 
                 Write-Log `
-                    "$($Package): Kein Update durchgeführt. ExitCode $ExitCode" `
-                    "WARNING"
+                    "Fehler beim Update von $Package - ExitCode $ExitCode" `
+                    "ERROR"
 
-                $AlreadyInstalled += $Package
+                $Failed += [PSCustomObject]@{
+
+                    Package  = $Package
+                    ExitCode = $ExitCode
+                }
             }
         }
         else {
@@ -708,7 +722,7 @@ foreach ($Item in $Installed) {
 
 Write-Host ""
 
-Write-Host "Aktualisiert/verarbeitet: $($Updated.Count)" -ForegroundColor Cyan
+Write-Host "Aktualisiert: $($Updated.Count)" -ForegroundColor Cyan
 
 foreach ($Item in $Updated) {
 
@@ -717,12 +731,12 @@ foreach ($Item in $Updated) {
 
 Write-Host ""
 
-Write-Host "Bereits installiert / kein Update: $($AlreadyInstalled.Count)" `
-    -ForegroundColor Yellow
+Write-Host "Bereits aktuell / vorhanden: $($AlreadyInstalled.Count)" `
+    -ForegroundColor Green
 
 foreach ($Item in $AlreadyInstalled) {
 
-    Write-Host "  [VORHANDEN] $Item" -ForegroundColor Yellow
+    Write-Host "  [AKTUELL] $Item" -ForegroundColor Green
 }
 
 Write-Host ""
@@ -756,7 +770,7 @@ Write-Log "ZUSAMMENFASSUNG"
 Write-Log "Profil: $ProfileName"
 Write-Log "Neu installiert: $($Installed.Count)"
 Write-Log "Updates: $($Updated.Count)"
-Write-Log "Bereits vorhanden: $($AlreadyInstalled.Count)"
+Write-Log "Bereits aktuell/vorhanden: $($AlreadyInstalled.Count)"
 Write-Log "Fehler: $($Failed.Count)"
 Write-Log "Ende: $(Get-Date -Format 'dd.MM.yyyy HH:mm:ss')"
 Write-Log "============================================================"
@@ -784,7 +798,8 @@ if ($Failed.Count -gt 0) {
 }
 else {
 
-    Write-Host "Alle Installationen wurden verarbeitet." -ForegroundColor Green
+    Write-Host "Alle Installationen wurden erfolgreich verarbeitet." `
+        -ForegroundColor Green
 }
 
 
